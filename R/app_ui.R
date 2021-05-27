@@ -7,9 +7,10 @@
 #' 
 library("plotly")
 library("DT")
+
 path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
 path_data <- file.path(path_user, "_DATA")
-macd_ai <- readr::read_rds(file.path(path_data, 'macd_ai_classified.rds'))
+macd_ai <- readr::read_rds(file.path(path_data, paste0('AI_RSIADXEURUSD60.rds')))
 
 app_ui <- function(request) {
   tagList(
@@ -58,7 +59,7 @@ app_ui <- function(request) {
                                                      tabPanel("Data",DT::dataTableOutput("data")))),
                                           #tabPanel("Balance",tableOutput("balance"))
                                           
-                                          tabPanel("Graph",
+                                          tabPanel("Profit",
                                                    tabsetPanel(
                                                      tabPanel("Profit",plotlyOutput("profitGraph")),
                                                      tabPanel("Balance", plotlyOutput("balanceGraph")))),
@@ -94,24 +95,38 @@ app_ui <- function(request) {
                  tabPanel(
                    "MT INSPECTION",sidebarLayout(
                      sidebarPanel(
+                       selectInput(inputId = "TerminalMT", label = "Select the terminal Number",choices = 1:5),
+                       column(width = 12,fluidRow(
+                         column(4,actionButton(inputId = "RefreshMT", label = "Refresh")),
+                         column(8,helpText("Refresh the symbol and magic number selection")))),
+                       column(width = 12,fluidRow( 
+                         column(6, selectInput(inputId = "MagicNumMT", label = "Select Magic Number", choices = 1:10)),
+                         column(6, selectInput(inputId = "SymbolMT", label = "Select the symbol",choices = 1:10)))),
+                       column(width = 12,fluidRow(
+                         column(6,dateInput(inputId = "FromMT", label = "From", value = Sys.Date()-7)),
+                         column(6,dateInput(inputId = "ToMT", label = "To", value = Sys.Date())))),
+                       
+                       # selectInput(inputId = "SymbolMT", label = "Select the symbol",choices = c("AUDCAD","AUDCHF","AUDJPY","AUDNZD","AUDUSD","CADCHF","CADJPY","CHFJPY","EURAUD","EURCAD","EURCHF","EURGBP","EURJPY","EURNZD","EURUSD","GBPAUD","GBPCAD","GBPCHF","GBPJPY","GBPNZD","GBPUSD","NZDCAD","NZDCHF","NZDJPY","NZDUSD","USDCAD","USDCHF","USDJPY")),
                        sliderInput("rows",
-                                   "Number of rows:",
+                                   "Select a Time:",
                                    min = 1,
                                    max = nrow(macd_ai),
                                    value = 1,
-                                   step = 1),
-                       actionButton(inputId = "BUN", label = "BUN"),
-                       actionButton(inputId = "BUV", label = "BUV"),
-                       actionButton(inputId = "BEN", label = "BEN"),
-                       actionButton(inputId = "BEV", label = "BEV"),
-                       actionButton(inputId = "RAN", label = "RAN"),
-                       actionButton(inputId = "RAV", label = "RAV"),
-                       actionButton(inputId ="BOOM", label = 'BOOM')
+                                   step = 1)
                      ),
                      mainPanel(
-                       plotOutput("AI_Data")
-                     ))
-                 ),
+                       tabsetPanel(type = "pills",
+                                   tabPanel("View",
+                                            textOutput("marketType"),
+                                            tags$head(tags$style("#marketType{font-weight:bold;
+                                                                           text-align : center;
+                                                                           font-size: 30px;}")),
+                                            plotlyOutput("closePrice"),
+                                            DT::dataTableOutput("closePriceTable")),
+                                   tabPanel("Stats",
+                                            plotlyOutput("controlGraph"))
+                       ))
+                   )),
                  tabPanel(
                    "MODEL INSPECTION", sidebarLayout(
                      sidebarPanel(actionButton(inputId = "RefreshM60", label = "Refresh"),

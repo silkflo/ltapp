@@ -75,48 +75,48 @@ app_server <- function( input, output, session ) {
     updateSelectInput(session, inputId = "MagicNum", label = NULL, choices = c("All",magicNumber()), selected = NULL)
     updateSelectInput(session, inputId = "Symbol", label = NULL, choices = c("All",symbol()), selected = NULL)
     
-    path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-    
-    
-    
-    Terminals <- normalizePath(Sys.getenv(paste0('PATH_T',input$Terminal)), winslash = '/')
-    
-    acc_file_T1 <- file.path(path_user, "_DATA/AccountResultsT1.rds")
-    acc_file_T3 <- file.path(path_user, "_DATA/AccountResultsT3.rds")
-    
-    
-    if(input$Terminal == 1 ){
-      DFT1Act <- read_csv(file.path(Terminals, 'AccountResultsT1.csv'),
-                          col_names = c("DateTime", "Balance", "Equity","Profit"),
-                          col_types = "cddd")
-      DFT1Act$DateTime <- ymd_hms(DFT1Act$DateTime)
-      if (!file.exists(acc_file_T1)) {
-        write_rds(DFT1Act, acc_file_T1)
-      } else {
-        read_rds(acc_file_T1) %>% 
-          bind_rows(DFT1Act) %>% 
-          arrange(DateTime) %>% 
-          head(1000) %>% 
-          write_rds(acc_file_T1)
-      }
-    }
-    if(input$Terminal == 3 ){
-      DFT3Act <- read_csv(file.path(Terminals, 'AccountResultsT3.csv'),
-                          col_names = c("DateTime", "Balance", "Equity","Profit"),
-                          col_types = "cddd")
-      DFT3Act$DateTime <- ymd_hms(DFT3Act$DateTime)
-      
-      if (!file.exists(acc_file_T3)) {
-        write_rds(DFT3Act, acc_file_T3)
-      }else {
-        read_rds(acc_file_T3) %>% 
-          bind_rows(DFT3Act) %>% 
-          arrange(DateTime) %>% 
-          head(1000) %>% 
-          write_rds(acc_file_T3)
-      }    
-    }
-    
+    #  path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
+    #  
+    #  
+    #  
+    #  Terminals <- normalizePath(Sys.getenv(paste0('PATH_T',input$Terminal)), winslash = '/')
+    #  
+    #  acc_file_T1 <- file.path(path_user, "_DATA/AccountResultsT1.rds")
+    #  acc_file_T3 <- file.path(path_user, "_DATA/AccountResultsT3.rds")
+    #  
+    #  
+    #  if(input$Terminal == 1 ){
+    #    DFT1Act <- read_csv(file.path(Terminals, 'AccountResultsT1.csv'),
+    #                        col_names = c("DateTime", "Balance", "Equity","Profit"),
+    #                        col_types = "cddd")
+    #    DFT1Act$DateTime <- ymd_hms(DFT1Act$DateTime)
+    #    if (!file.exists(acc_file_T1)) {
+    #      write_rds(DFT1Act, acc_file_T1)
+    #    } else {
+    #      read_rds(acc_file_T1) %>% 
+    #        bind_rows(DFT1Act) %>% 
+    #        arrange(DateTime) %>% 
+    #        head(1000) %>% 
+    #        write_rds(acc_file_T1)
+    #    }
+    #  }
+    #  if(input$Terminal == 3 ){
+    #    DFT3Act <- read_csv(file.path(Terminals, 'AccountResultsT3.csv'),
+    #                        col_names = c("DateTime", "Balance", "Equity","Profit"),
+    #                        col_types = "cddd")
+    #    DFT3Act$DateTime <- ymd_hms(DFT3Act$DateTime)
+    #    
+    #    if (!file.exists(acc_file_T3)) {
+    #      write_rds(DFT3Act, acc_file_T3)
+    #    }else {
+    #      read_rds(acc_file_T3) %>% 
+    #        bind_rows(DFT3Act) %>% 
+    #        arrange(DateTime) %>% 
+    #        head(1000) %>% 
+    #        write_rds(acc_file_T3)
+    #    }    
+    #  }
+    #  
     
   })
   
@@ -234,27 +234,6 @@ app_server <- function( input, output, session ) {
     DF_Balance <- DF_Balance %>%  mutate(Balance) 
   })
   
-  #Disabled
-  output$balance <- renderTable({
-    if(file.exists(file_path())){
-      
-      if(input$MagicNum != "All"){
-        DF_Balance <- data.frame(ExitTime = as.character(DF_Balance()$ExitTime),
-                                 Profit = DF_Balance()$Profit,
-                                 Symbol = DF_Balance()$Symbol,
-                                 Balance = DF_Balance()$Balance)
-        
-        "ExitTime" =  DF_Balance[order(DF_Balance$ExitTime,decreasing = F),]
-      }else{
-        
-        DF_Balance <- data.frame(ExitTime = as.character(DF_Balance_All()$ExitTime),
-                                 Profit = DF_Balance_All()$Profit,
-                                 Symbol = DF_Balance_All()$Symbol,
-                                 Balance = DF_Balance_All()$Balance)
-      }
-    }
-    
-  })
   
   #----------GRAPH TAB-----------------
   output$profitGraph <- renderPlotly({
@@ -590,146 +569,205 @@ app_server <- function( input, output, session ) {
   ####################### - MT INSPECTION - #########################
   ###################################################################
   
-  
-  macd_ai <- reactive({
-    path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-    path_data <- file.path(path_user, "_DATA")
-    readr::read_rds(file.path(path_data, 'macd_ai_classified.rds'))
-  })  
-  
-  n_rows <- reactiveValues(c = nrow(macd_ai))
-  
-  #update slider max
-  observeEvent(input$BOOM, {
-    path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-    path_data <- file.path(path_user, "_DATA")
-    macd_ai <- readr::read_rds(file.path(path_data, 'macd_ai_classified.rds')) 
-    n_rows$c <- nrow(macd_ai)
-    updateSliderInput(session, inputId = "rows",min = 1, max = n_rows$c,value = 1)
+  #-----------MANAGE SIDEBAR-------------    
+  #Refresh data 
+  observeEvent(input$RefreshMT,{
+    updateSelectInput(session, inputId = "MagicNumMT", label = NULL, choices = c("All",magicNumber()), selected = NULL)
+    updateSelectInput(session, inputId = "SymbolMT", label = NULL, choices = c("All",symbol()), selected = NULL)
+    
   })
   
-  #current market type value
-  mt_analysed <- reactive({
-    
-    path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-    path_data <- file.path(path_user, "_DATA")
-    macd_ai <- readr::read_rds(file.path(path_data, 'macd_ai_classified.rds'))
-    
-    mt_analysed <- macd_ai[input$rows, 65]
-  })
-  #current data row
-  ln_analysed <- reactive({ ln_analysed <- macd_ai()[input$rows, ]})
   
+  observeEvent(input$TerminalMT,{
+    updateSelectInput(session, inputId = "MagicNumMT", label = NULL, choices = c("All",magicNumber()), selected = NULL)
+    updateSelectInput(session, inputId = "SymbolMT", label = NULL, choices = c("All",symbol()), selected = NULL)
+  }) 
   
-  #function to write data
-  write_data <- function(x){
-    readr::write_rds(x, file.path(path_data, 'macd_ai_classified.rds'))
-  }
-  
-  #output data from this app
-  file_checked <- file.path(path_data, "macd_checked_60M.rds")
-  
-  # function that writes data to rds file 
-  storeData <- function(data, fileName) {
-    
-    nonDuplicate <- data[!duplicated(data), ]
-    
-    if(file.exists(fileName)){
-      ex_data <- readr::read_rds(fileName)
-      agr_data <- dplyr::bind_rows(ex_data, nonDuplicate)
-      readr::write_rds(x = agr_data, file = fileName)
+  #update Symbol choices
+  observeEvent(input$MagicNumMT,{
+    if(input$MagicNumMT == "All"){
+      updateSelectInput(session, "SymbolMT",label = "Select the symbol",choices = c("All",symbol()),selected = "All")
     }else{
-      # Write the file to the local system
-      readr::write_rds(x = nonDuplicate, file = fileName)
+      pair <- DF_Stats()%>%group_by(Symbol)%>%filter(MagicNumber == input$MagicNumMT)%>%select(Symbol)%>%unique()
+      updateSelectInput(session, "SymbolMT",label = "Select the symbol",choices = as.character(pair),selected = pair)
     }
-  }
-  
-  observeEvent(input$BUN, {
-    
-    path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-    path_data <- file.path(path_user, "_DATA")
-    macd_ai <- readr::read_rds(file.path(path_data, 'macd_ai_classified.rds'))   
-    df <- tibble::tibble(M_T = 'BUN')
-    ln_new <- dplyr::bind_cols(macd_ai[input$rows, 1:64], df)
-    storeData(ln_new, file_checked)
-    macd_ai <<- macd_ai[-input$rows, ]
-    write_data(macd_ai)
-  })     
-  
-  observeEvent(input$BUV, {
-    
-    path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-    path_data <- file.path(path_user, "_DATA")
-    macd_ai <- readr::read_rds(file.path(path_data, 'macd_ai_classified.rds')) 
-    df <- tibble::tibble(M_T = 'BUV')
-    ln_new <- dplyr::bind_cols(macd_ai[input$rows, 1:64], df)
-    storeData(ln_new, file_checked)
-    macd_ai <<- macd_ai[-input$rows, ]
-    write_data(macd_ai)
+  })
+  #update Magic Number
+  observeEvent(input$SymbolMT,{
+    if(input$SymbolMT == "All" || input$SymbolMT == 1)
+    {
+      updateSelectInput(session, "MagicNumMT",label = "Select Magic Number",choices = c("All",magicNumber()),selected = "All")
+    }else
+    {
+      MN <- DF_Stats()%>%group_by(MagicNumber)%>%filter(Symbol==input$SymbolMT)%>%select(MagicNumber)%>%unique()
+      updateSelectInput(session, "MagicNumMT",label = "Select Magic Number",choices =  c(as.integer(unlist(MN))) ,selected = as.integer(unlist(MN)[1]))
+      
+    }
   })
   
-  observeEvent(input$BEN, {
-    
-    path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-    path_data <- file.path(path_user, "_DATA")
-    macd_ai <- readr::read_rds(file.path(path_data, 'macd_ai_classified.rds'))   
-    df <- tibble::tibble(M_T = 'BEN')
-    ln_new <- dplyr::bind_cols(macd_ai[input$rows, 1:64], df)
-    storeData(ln_new, file_checked)
-    macd_ai <<- macd_ai[-input$rows, ]
-    write_data(macd_ai)
+  observeEvent(input$FromMT,{
+    if(input$SymbolMT != 1 && input$SymbolMT != "All"){
+      
+      
+      oldestDate <-  Ai_Rsiadx()$X1[nrow(Ai_Rsiadx())]
+      rownumber <- c(rownames(Ai_Rsiadx()))
+      time <- c(Ai_Rsiadx()$X1)
+      time_DF <- data.frame(rownumber,time)
+      timeFilter <- paste0(input$FromMT," 00:00:00")
+      row <- as.integer(time_DF %>% filter(time == timeFilter)%>%select(rownumber))
+      print(row)
+      updateSliderInput(session,"rows",value = row)
+    }
   })
   
-  observeEvent(input$BEV, {
+  
+  #-----------------REACTIVE EVENTS-----------------
+  
+  MarketTypeLog <- reactive({
     
-    path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-    path_data <- file.path(path_user, "_DATA")
-    macd_ai <- readr::read_rds(file.path(path_data, 'macd_ai_classified.rds')) 
-    df <- tibble::tibble(M_T = 'BEV')
-    ln_new <- dplyr::bind_cols(macd_ai[input$rows, 1:64], df)
-    storeData(ln_new, file_checked)
-    macd_ai <<- macd_ai[-input$rows, ]
-    write_data(macd_ai)
+    MN <- DF_Stats() %>% select(MagicNumber)%>% group_by(MagicNumber) 
+    MN <- unique(MN)
+    path_user <- normalizePath(Sys.getenv(paste0("PATH_T",input$TerminalMT)), winslash = '/')
+    
+    MTList = list()
+    for(i in 1:nrow(MN)){
+      
+      magicNumber <- MN[i,]
+      marketLogPath <- paste0(path_user,"/MarketTypeLog",magicNumber,".csv")
+      marketFile <- read.csv(marketLogPath, sep = ",",
+                             col.names = c("MagicNumber","Ticket","MTcode","TimeHold","MarketType"))
+      marketFile$i <- i
+      MTList[[i]] <- marketFile
+      
+      
+    }
+    
+    MarketTypeLog <- data.table::rbindlist(MTList)
+    
+    
+    
   })
   
-  observeEvent(input$RAV, {
+  #
+  Ai_Rsiadx <- reactive({
     
-    path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-    path_data <- file.path(path_user, "_DATA")
-    macd_ai <- readr::read_rds(file.path(path_data, 'macd_ai_classified.rds'))   
-    df <- tibble::tibble(M_T = 'RAV')
-    ln_new <- dplyr::bind_cols(macd_ai[input$rows, 1:64], df)
-    storeData(ln_new, file_checked)
-    macd_ai <<- macd_ai[-input$rows, ]
-    write_data(macd_ai)
+    if(input$SymbolMT != "character(0)"){
+      path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
+      path_data <- file.path(path_user, "_DATA")
+      Ai_Rsiadx <-readr::read_rds(file.path(path_data,  paste0('AI_RSIADX',input$SymbolMT,'60.rds')))
+    }
   })
   
-  observeEvent(input$RAN, {
-    
-    path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-    path_data <- file.path(path_user, "_DATA")
-    macd_ai <- readr::read_rds(file.path(path_data, 'macd_ai_classified.rds')) 
-    df <- tibble::tibble(M_T = 'RAN')
-    ln_new <- dplyr::bind_cols(macd_ai[input$rows, 1:64], df)
-    storeData(ln_new, file_checked)
-    macd_ai <<- macd_ai[-input$rows, ]
-    write_data(macd_ai)
-  })
   
+  
+  
+  #######VIEW TAB####################
+  
+  output$marketType <- renderText({
+    
+    if(input$SymbolMT != "All"){
+      Terminals <- normalizePath(Sys.getenv('PATH_T1'), winslash = '/')
+      file_path <- paste0(Terminals,paste0('/AI_MarketType_',input$SymbolMT,'60.csv'))
+      MT <- read.csv(file_path,col.names = c("MT","Prediction"))
+      MTString <- toString(MT$MT)
+      PredictionString <- toString(MT$Prediction)
+      
+      paste(MTString," ", PredictionString)
+    } else{"Please select a symbol"}
+  })
   
   #graphs and outputs
-  output$AI_Data <- renderPlot({
+  output$closePrice <- renderPlotly({
+    if(input$SymbolMT != "All"){
+      # generate bins based on input$bins from ui.R
+      #  path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
+      #  path_data <- file.path(path_user, "_DATA")
+      #  CP <-readr::read_rds(file.path(path_data,  paste0('AI_RSIADX',input$SymbolMT,'60.rds')))
+      toRow <- input$rows + 63
+      
+      graph <-  plot_ly(
+        type = 'scatter',
+        x = Ai_Rsiadx()$X1[input$rows:toRow],
+        y = Ai_Rsiadx()$X2[input$rows:toRow],
+        mode = 'lines',
+        name = 'Market Type',
+        line = list(color = 'red'))
+    } 
+  })
+  
+  output$closePriceTable <- DT::renderDataTable({
+    if(input$SymbolMT != "All"){
+      #  print(input$rows+64)
+      path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
+      path_data <- file.path(path_user, "_DATA")
+      CP <-readr::read_rds(file.path(path_data,  paste0('AI_RSIADX',input$SymbolMT,'60.rds')))
+      toRow <- input$rows + 63
+      CPDF <-  data.frame( Date =as.character(CP$X1),
+                           Close_price = format(round(CP$X2,5), nsmall = 5))
+      CPDF <- CPDF[order(c(input$rows:toRow),decreasing = TRUE),]
+      
+      datatable(CPDF,class = 'cell-border stripe', rownames = FALSE, filter = 'top', options = list(
+        pageLength = 64, autoWidth = TRUE))
+    }
+  })
+  
+  
+  
+  #############STAT TAB######################
+  
+  PairID_DF <- reactive({
     
-    # generate bins based on input$bins from ui.R
+    pair <- c("AUDCAD","AUDCHF","AUDJPY","AUDNZD","AUDUSD","CADCHF","CADJPY","CHFJPY","EURAUD","EURCAD","EURCHF","EURGBP","EURJPY","EURNZD","EURUSD","GBPAUD","GBPCAD","GBPCHF","GBPJPY","GBPNZD","GBPUSD","NZDCAD","NZDCHF","NZDJPY","NZDUSD","USDCAD","USDCHF","USDJPY")
+    pairId <- c("00",	"01",	"02",	"03",	"04",	"05",	"06",	"07",	"08",	"09",	"10",	"11",	"12",	"13",	"14",	"15",	"16",	"17",	"18",	"19",	"20",	"21",	"22",	"23",	"24",	"25",	"26",	"27")
+    PairID_DF <- data.frame(pair,pairId)
+    
+  })
+  
+  pathControl <- reactive({
+    
     path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-    path_data <- file.path(path_user, "_DATA")
-    macd_ai <-readr::read_rds(file.path(path_data, 'macd_ai_classified.rds'))
+    pairID <- PairID_DF() %>% filter(pair == input$SymbolMT)
+    pair <- pairID[2]
+    
+    path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
     
     
-    plot(x = 1:64, y = macd_ai[input$rows, 1:64], main = mt_analysed())
-    abline(h=0, col="blue")
+    path_T1 <- normalizePath(Sys.getenv('PATH_T1'), winslash = '/')
+    OrderResultPath <- paste0(path_T1,"/OrdersResultsT1.csv")
+    OrderResult <- read.csv(OrderResultPath, header = FALSE)
     
-    #plot(x = 1:64, y = macd_ai[3, 1:64])
+    OrderResult <- OrderResult%>%select(V1,V6)%>%unique()
+    
+    MagicNumber <- OrderResult %>% 
+      filter(V6 == input$SymbolMT) %>%
+      select(V1)
+    getMN <- MagicNumber%>%pull(V1)
+    pathControl <- paste0(path_user,"/_DATA/control/",getMN,".rds")
+    
+  })
+  
+  
+  output$controlGraph <- renderPlotly({
+    
+    if(file.exists(pathControl())){
+      
+      controlData <- readRDS(pathControl())
+      control <-c(controlData$alpha,controlData$gamma,controlData$epsilon)
+      controlData <- data.frame(control)
+      
+      
+      graph <- plot_ly(data = controlData, x = c("alpha","gamma","epsilon"), y = controlData[,1],
+                       type = 'scatter',
+                       mode = "markers",
+                       marker = list(size = 50,
+                                     color = 'rgba(16, 0, 255, .9)',
+                                     line = list(color = 'rgba(152, 0, 0, .8)',
+                                                 width = 2)))
+      graph <- graph %>% layout(
+        title = "Control Parameter")
+      
+    }
+    
     
     
   })
@@ -901,8 +939,7 @@ app_server <- function( input, output, session ) {
   #---------------END CODE------------------------------------------
   output$console <- renderPrint({
     
-    print(nrow(Stats()))
-    
+    print(Stats())
   })
   
   
