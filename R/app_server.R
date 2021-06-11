@@ -132,7 +132,7 @@ app_server <- function( input, output, session ) {
       updateSelectInput(session, "Symbol",label = "Select the symbol",choices = c("All",symbol()),selected = "All")
     }else{
       pair <- DF_Stats()%>%group_by(Symbol)%>%filter(MagicNumber == input$MagicNum)%>%select(Symbol)%>%unique()
-      updateSelectInput(session, "Symbol",label = "Select the symbol",choices = as.character(pair),selected = pair)
+      updateSelectInput(session, "Symbol",label = "Select the symbol",choices = c("All",symbol()),selected = pair)
     }
   })
   #update Magic Number
@@ -143,7 +143,7 @@ app_server <- function( input, output, session ) {
     }else
     {
       MN <- DF_Stats()%>%group_by(MagicNumber)%>%filter(Symbol==input$Symbol)%>%select(MagicNumber)%>%unique()
-      updateSelectInput(session, "MagicNum",label = "Select Magic Number",choices =  c(as.integer(unlist(MN))) ,selected = as.integer(unlist(MN)[1]))
+      updateSelectInput(session, "MagicNum",label = "Select Magic Number",choices =  c("All",magicNumber()) ,selected = as.integer(unlist(MN)[1]))
     }
   })
   
@@ -572,35 +572,37 @@ app_server <- function( input, output, session ) {
   #-----------MANAGE SIDEBAR-------------    
   #Refresh data 
   observeEvent(input$RefreshMT,{
-    updateSelectInput(session, inputId = "MagicNumMT", label = NULL, choices = c("All",magicNumber()), selected = NULL)
-    updateSelectInput(session, inputId = "SymbolMT", label = NULL, choices = c("All",symbol()), selected = NULL)
+    updateSelectInput(session, inputId = "MagicNumMT", label = NULL, choices = c("All",magicNumberMT()), selected = NULL)
+    updateSelectInput(session, inputId = "SymbolMT", label = NULL, choices = c("All",symbolMT()), selected = NULL)
     
   })
   
   
   observeEvent(input$TerminalMT,{
-    updateSelectInput(session, inputId = "MagicNumMT", label = NULL, choices = c("All",magicNumber()), selected = NULL)
-    updateSelectInput(session, inputId = "SymbolMT", label = NULL, choices = c("All",symbol()), selected = NULL)
+    updateSelectInput(session, inputId = "MagicNumMT", label = NULL, choices = c("All",magicNumberMT()), selected = NULL)
+    updateSelectInput(session, inputId = "SymbolMT", label = NULL, choices = c("All",symbolMT()), selected = NULL)
   }) 
   
   #update Symbol choices
   observeEvent(input$MagicNumMT,{
     if(input$MagicNumMT == "All"){
-      updateSelectInput(session, "SymbolMT",label = "Select the symbol",choices = c("All",symbol()),selected = "All")
+      updateSelectInput(session, "SymbolMT",label = "Select the symbol",choices = c("All",symbolMT()),selected = "All")
     }else{
-      pair <- DF_Stats()%>%group_by(Symbol)%>%filter(MagicNumber == input$MagicNumMT)%>%select(Symbol)%>%unique()
-      updateSelectInput(session, "SymbolMT",label = "Select the symbol",choices = as.character(pair),selected = pair)
+      pair <- DF_StatsMT()%>%group_by(Symbol)%>%filter(MagicNumber == input$MagicNumMT)%>%select(Symbol)%>%unique()
+      updateSelectInput(session, "SymbolMT",label = "Select the symbol",choices = c("All",symbolMT()),selected = pair)
     }
   })
   #update Magic Number
   observeEvent(input$SymbolMT,{
+    magicNumber <- unique(DF_StatsMT()$MagicNumber)
+    
     if(input$SymbolMT == "All" || input$SymbolMT == 1)
     {
-      updateSelectInput(session, "MagicNumMT",label = "Select Magic Number",choices = c("All",magicNumber()),selected = "All")
+      updateSelectInput(session, "MagicNumMT",label = "Select Magic Number",choices = c("All",magicNumber),selected = "All")
     }else
     {
-      MN <- DF_Stats()%>%group_by(MagicNumber)%>%filter(Symbol==input$SymbolMT)%>%select(MagicNumber)%>%unique()
-      updateSelectInput(session, "MagicNumMT",label = "Select Magic Number",choices =  c(as.integer(unlist(MN))) ,selected = as.integer(unlist(MN)[1]))
+      MN <- DF_StatsMT()%>%group_by(MagicNumber)%>%filter(Symbol==input$SymbolMT)%>%select(MagicNumber)%>%unique()
+      updateSelectInput(session, "MagicNumMT",label = "Select Magic Number",choices =  c("All",magicNumber) ,selected = as.integer(unlist(MN)[1]))
       
     }
   })
@@ -613,19 +615,54 @@ app_server <- function( input, output, session ) {
       rownumber <- c(rownames(Ai_Rsiadx()))
       time <- c(Ai_Rsiadx()$X1)
       time_DF <- data.frame(rownumber,time)
-      timeFilter <- paste0(input$FromMT," 00:00:00")
-      row <- as.integer(time_DF %>% filter(time == timeFilter)%>%select(rownumber))
-      print(row)
+      timeFilter <- paste0(input$FromMT," 01:00:00")
+      row <- time_DF %>% filter(time == timeFilter)%>%select(rownumber)
+      for (i in 1:2){
+        if(nrow(row)==0){
+          
+          timeFilter <- paste0(input$FromMT + i," 01:00:00")
+          print(timeFilter)
+          row <- time_DF %>% filter(time == timeFilter)%>%select(rownumber)
+        }
+        
+        
+      }
+      row <- row[1,]
+      
       updateSliderInput(session,"rows",value = row)
     }
   })
   
+  observeEvent(input$Now,{
+    if(input$SymbolMT != 'All')
+    {
+      updateSliderInput(session,"rows",value = nrow(Ai_Rsiadx())-64)
+    }
+  })
   
   #-----------------REACTIVE EVENTS-----------------
   
+  DF_StatsMT <- reactive({
+    
+    Terminals <- normalizePath(Sys.getenv(paste0('PATH_T',input$TerminalMT)), winslash = '/')
+    file_path <- paste0(Terminals,"/OrdersResultsT",input$TerminalMT,".csv")
+    DF_StatsMT <- read.csv(file_path, col.names = c("MagicNumber","Ticket","EntryTime","ExitTime","Profit","Symbol","Type"))
+    
+    DF_StatsMT <- data.frame(MagicNumber = DF_StatsMT$MagicNumber,
+                             Ticket = DF_StatsMT$Ticket,
+                             EntryTime = as.POSIXct(DF_StatsMT$EntryTime, format = "%Y.%m.%d %H:%M:%S", tz = "Africa/Cairo"),
+                             ExitTime = as.POSIXct(DF_StatsMT$ExitTime, format = "%Y.%m.%d %H:%M:%S", tz = "Africa/Cairo"),
+                             Profit = DF_StatsMT$Profit,
+                             Symbol = DF_StatsMT$Symbol,
+                             Type = DF_StatsMT$Type)
+    
+  })
+  
+  
   MarketTypeLog <- reactive({
     
-    MN <- DF_Stats() %>% select(MagicNumber)%>% group_by(MagicNumber) 
+    
+    MN <- DF_StatsMT() %>% select(MagicNumber)%>% group_by(MagicNumber) 
     MN <- unique(MN)
     path_user <- normalizePath(Sys.getenv(paste0("PATH_T",input$TerminalMT)), winslash = '/')
     
@@ -634,7 +671,7 @@ app_server <- function( input, output, session ) {
       
       magicNumber <- MN[i,]
       marketLogPath <- paste0(path_user,"/MarketTypeLog",magicNumber,".csv")
-      marketFile <- read.csv(marketLogPath, sep = ",",
+      marketFile <- read.csv(marketLogPath, header = FALSE, sep = ",",
                              col.names = c("MagicNumber","Ticket","MTcode","TimeHold","MarketType"))
       marketFile$i <- i
       MTList[[i]] <- marketFile
@@ -644,8 +681,7 @@ app_server <- function( input, output, session ) {
     
     MarketTypeLog <- data.table::rbindlist(MTList)
     
-    
-    
+    MarketTypeLog <- merge(x = MarketTypeLog,y = DF_StatsMT(),by = "Ticket", All.x= TRUE)
   })
   
   #
@@ -653,13 +689,65 @@ app_server <- function( input, output, session ) {
     
     if(input$SymbolMT != "character(0)"){
       path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-      path_data <- file.path(path_user, "_DATA")
+      path_data <- file.path(path_user, "_DATA/6_06")
       Ai_Rsiadx <-readr::read_rds(file.path(path_data,  paste0('AI_RSIADX',input$SymbolMT,'60.rds')))
+      
+      
+      #https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      Ai_Rsiadx <- Ai_Rsiadx[order(Ai_Rsiadx$X1),]
     }
   })
   
+  SystemControlMT <- reactive({
+    
+    Terminals <- normalizePath(Sys.getenv(paste0('PATH_T',3)), winslash = '/')
+    file_path <- paste0(Terminals,"/OrdersResultsT",3,".csv")
+    DF_StatsMT <- read.csv(file_path, col.names = c("MagicNumber","Ticket","EntryTime","ExitTime","Profit","Symbol","Type"))
+    
+    DF_StatsMT <- data.frame(MagicNumber = DF_StatsMT$MagicNumber,
+                             Ticket = DF_StatsMT$Ticket,
+                             EntryTime = as.POSIXct(DF_StatsMT$EntryTime, format = "%Y.%m.%d %H:%M:%S", tz = "Africa/Cairo"),
+                             ExitTime = as.POSIXct(DF_StatsMT$ExitTime, format = "%Y.%m.%d %H:%M:%S", tz = "Africa/Cairo"),
+                             Profit = DF_StatsMT$Profit,
+                             Symbol = DF_StatsMT$Symbol,
+                             Type = DF_StatsMT$Type)
+    
+    MN <- DF_StatsMT %>% select(MagicNumber)%>% group_by(MagicNumber) 
+    MN <- unique(MN)
+    path_user <- normalizePath(Sys.getenv(paste0("PATH_T",3)), winslash = '/')
+    
+    MTList = list()
+    for(i in 1:nrow(MN)){
+      
+      magicNumber <- MN[i,]
+      SystemControlPath <- paste0(path_user,"/SystemControlMT",magicNumber,".csv")
+      marketFile <- read.csv(SystemControlPath, header = FALSE, sep = ",",
+                             col.names = c("MarketType","Policy"))
+      marketFile <- marketFile %>% cbind(magicNumber)
+      marketFile$i <- i
+      MTList[[i]] <- marketFile
+      
+      
+    }
+    
+    SystemControlMT <- data.table::rbindlist(MTList)
+    SystemControlMT <- SystemControlMT %>% filter(MarketType != 'MarketType')
+    
+  })
   
   
+  symbolMT <- reactive({
+    if(file.exists(file_path())){  
+      symbol <-  unique(DF_StatsMT()$Symbol)
+      symbol[order(symbol)]
+    }else{"NO DATA"}
+  })
+  
+  magicNumberMT <- reactive({
+    if(file.exists(file_path())){
+      unique(DF_StatsMT()$MagicNumber)
+    }else{"NO DATA"}
+  })
   
   #######VIEW TAB####################
   
@@ -695,16 +783,36 @@ app_server <- function( input, output, session ) {
     } 
   })
   
+  output$systemControlMT <- DT::renderDataTable({
+    if(input$SymbolMT != 'All'){
+      
+      InputMN <- input$MagicNumMT
+      InputMNLeft <- substr(InputMN,1,4)
+      #get right character of the Magic Number
+      substrRight <- function(x, n){
+        substr(x, nchar(x)-n+1, nchar(x))
+      }
+      InputMNRight <- substrRight(InputMN,2)
+      InputMN <- paste0(InputMNLeft,3,InputMNRight)
+      
+      
+      SCMT <- SystemControlMT() %>% 
+        filter(MagicNumber == InputMN)  %>%
+        select(MarketType,Policy) 
+      
+      
+    }
+    
+  })
+  
   output$closePriceTable <- DT::renderDataTable({
     if(input$SymbolMT != "All"){
-      #  print(input$rows+64)
-      path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-      path_data <- file.path(path_user, "_DATA")
-      CP <-readr::read_rds(file.path(path_data,  paste0('AI_RSIADX',input$SymbolMT,'60.rds')))
+      
       toRow <- input$rows + 63
-      CPDF <-  data.frame( Date =as.character(CP$X1),
-                           Close_price = format(round(CP$X2,5), nsmall = 5))
-      CPDF <- CPDF[order(c(input$rows:toRow),decreasing = TRUE),]
+      CPDF <-  data.frame( Date =as.character(Ai_Rsiadx()$X1[input$rows:toRow]),
+                           Close_price = format(round(Ai_Rsiadx()$X2[input$rows:toRow],5), nsmall = 5))
+      
+      # CPDF <- CPDF[order(c(input$rows:toRow),decreasing = TRUE),]
       
       datatable(CPDF,class = 'cell-border stripe', rownames = FALSE, filter = 'top', options = list(
         pageLength = 64, autoWidth = TRUE))
@@ -746,6 +854,43 @@ app_server <- function( input, output, session ) {
     
   })
   
+  output$MTResult <- renderPlotly({
+    
+    if(input$MagicNumMT == "All"){
+      
+      MarketTypeLog <- MarketTypeLog() %>% filter(MarketTypeLog()$EntryTime >= input$FromMT)
+      if(nrow(MarketTypeLog)>0){
+        MarketTypeResult <- aggregate(MarketTypeLog$Profit, by=list(MarketType=MarketTypeLog$MarketType), FUN=sum)
+        
+        hist <- plot_ly(
+          x = MarketTypeResult$MarketType,
+          y = MarketTypeResult$x,
+          name = "MT Result",
+          type = "bar")
+        
+        
+        hist <- hist %>% layout(title = "PROFIT BY MARKET TYPE",
+                                yaxis = list(title = 'Profit')
+        )
+        
+      }
+    }else{
+      
+      MarketTypeLog <- MarketTypeLog() %>% filter(MarketTypeLog()$MagicNumber.x == input$MagicNumMT , MarketTypeLog()$EntryTime >= input$FromMT)
+      
+      if(nrow(MarketTypeLog>0)){
+        MarketTypeResult <- aggregate(MarketTypeLog$Profit, by=list(MarketType=MarketTypeLog$MarketType), FUN=sum)
+        
+        
+        hist <- plot_ly(
+          x = MarketTypeResult$MarketType,
+          y = MarketTypeResult$x,
+          name = "MT Result",
+          type = "bar")
+      }
+    }
+    
+  })
   
   output$controlGraph <- renderPlotly({
     
@@ -760,8 +905,8 @@ app_server <- function( input, output, session ) {
                        type = 'scatter',
                        mode = "markers",
                        marker = list(size = 50,
-                                     color = 'rgba(16, 0, 255, .9)',
-                                     line = list(color = 'rgba(152, 0, 0, .8)',
+                                     color = 'rgba(255, 0, 0, .9)',
+                                     line = list(color = 'rgba(0, 0, 0, .8)',
                                                  width = 2)))
       graph <- graph %>% layout(
         title = "Control Parameter")
@@ -769,6 +914,28 @@ app_server <- function( input, output, session ) {
     }
     
     
+    
+  })
+  
+  
+  
+  
+  
+  output$MarketLog <- DT::renderDataTable({
+    
+    MarketTypeLog <- MarketTypeLog()
+    
+    if(input$SymbolMT == "All"){
+      MTLog <- MarketTypeLog %>% filter(EntryTime >= input$FromMT)
+      datatable(MTLog,class = 'cell-border stripe', rownames = FALSE, filter = 'top', options = list(
+        pageLength = 10, autoWidth = TRUE))
+      
+    } else
+    {
+      MTLog <- MarketTypeLog %>% filter(Symbol == input$SymbolMT, EntryTime >= input$FromMT)
+      datatable(MTLog,class = 'cell-border stripe', rownames = FALSE, filter = 'top', options = list(
+        pageLength = 10, autoWidth = TRUE))
+    }
     
   })
   
@@ -939,7 +1106,8 @@ app_server <- function( input, output, session ) {
   #---------------END CODE------------------------------------------
   output$console <- renderPrint({
     
-    print(Stats())
+    print(SystemControlMT())
+    
   })
   
   

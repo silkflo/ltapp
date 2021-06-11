@@ -9,7 +9,7 @@ library("plotly")
 library("DT")
 
 path_user <- normalizePath(Sys.getenv('PATH_DSS'), winslash = '/')
-path_data <- file.path(path_user, "_DATA")
+path_data <- file.path(path_user, "_DATA/6_06")
 macd_ai <- readr::read_rds(file.path(path_data, paste0('AI_RSIADXEURUSD60.rds')))
 
 app_ui <- function(request) {
@@ -104,11 +104,12 @@ app_ui <- function(request) {
                          column(6, selectInput(inputId = "SymbolMT", label = "Select the symbol",choices = 1:10)))),
                        column(width = 12,fluidRow(
                          column(6,dateInput(inputId = "FromMT", label = "From", value = Sys.Date()-7)),
-                         column(6,dateInput(inputId = "ToMT", label = "To", value = Sys.Date())))),
+                         column(6,actionButton(inputId = "Now", label = "Now"))
+                       )),
                        
                        # selectInput(inputId = "SymbolMT", label = "Select the symbol",choices = c("AUDCAD","AUDCHF","AUDJPY","AUDNZD","AUDUSD","CADCHF","CADJPY","CHFJPY","EURAUD","EURCAD","EURCHF","EURGBP","EURJPY","EURNZD","EURUSD","GBPAUD","GBPCAD","GBPCHF","GBPJPY","GBPNZD","GBPUSD","NZDCAD","NZDCHF","NZDJPY","NZDUSD","USDCAD","USDCHF","USDJPY")),
                        sliderInput("rows",
-                                   "Select a Time:",
+                                   "Select a Time row:",
                                    min = 1,
                                    max = nrow(macd_ai),
                                    value = 1,
@@ -122,9 +123,14 @@ app_ui <- function(request) {
                                                                            text-align : center;
                                                                            font-size: 30px;}")),
                                             plotlyOutput("closePrice"),
+                                            DT::dataTableOutput("systemControlMT"),
                                             DT::dataTableOutput("closePriceTable")),
                                    tabPanel("Stats",
-                                            plotlyOutput("controlGraph"))
+                                            plotlyOutput("MTResult"),
+                                            plotlyOutput("controlGraph")),
+                                   tabPanel("Log",
+                                            DT::dataTableOutput("MarketLog")
+                                   )
                        ))
                    )),
                  tabPanel(
