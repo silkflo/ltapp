@@ -156,8 +156,10 @@ app_ui <- function(request) {
                        
                      ),
                      mainPanel(tabsetPanel( type = "pills",
-                                            tabPanel("Log",DT::dataTableOutput("perfLog")),
-                                            tabPanel("Graph",br(),plotlyOutput("perfGraph")))),
+                                            tabPanel("Perf Log",DT::dataTableOutput("perfLog")),
+                                            tabPanel("Perf Graph",br(),plotlyOutput("perfGraph")),
+                                            tabPanel("Input Log",DT::dataTableOutput("inputLog")),
+                                            tabPanel("input Graph",br(),plotlyOutput("inputGraph")))),
                      position = "right")
                  )
       )))

@@ -1051,16 +1051,41 @@ app_server <- function( input, output, session ) {
   ############################# PERFORMANCE ########################################
   ##################################################################################
   
+  #-------Reactive---------#
+  
   perf_log <- reactive({
     pathDSS <- normalizePath(Sys.getenv("PATH_DSS"), winslash = '/')
     file_path <- paste0(pathDSS,"/_LOGS/perf_logs60.rds")
     perf_log <- readr::read_rds(file_path) %>%
       filter(TimeTest >= input$FromCopy, TimeTest <= paste0(input$ToCopy," 23:59:59"))
+  })
+  
+  
+  input_log <- reactive({
+    pathDSS <- normalizePath(Sys.getenv("PATH_DSS"), winslash = '/')
+    file_path <- paste0(pathDSS,"/_SIM/all_results.rds")
     
+    input_log <- readr::read_rds(file_path) %>%
+      filter(TimeTest >= input$FromCopy, TimeTest <= paste0(input$ToCopy," 23:59:59"))
+    input_log$TimeTest <-  sort(input_log$TimeTest,decreasing = TRUE)
+    input_log <- data.frame(TimeTest = as.POSIXct(input_log$TimeTest,format = "%d-%m-%Y %H:%M:%S"),
+                            Folder = as.character(input_log$Folder),
+                            MeanPerf = round(input_log$MeanPerf,2),
+                            HighPerf = round(input_log$HighPerf,2))
+    
+    for (i in 1:nrow(input_log)){
+      
+      input_log[i,2] <- substr(input_log[i,2],nchar(input_log[i,2]) - 3,nchar(input_log[i,2]))
+      
+    }
+    input_log
     
   })
   
   
+  #---------Observe event--------------#
+  
+  #copy date from Result tab
   observeEvent(input$From,{
     updateDateInput(session,inputId = "FromCopy",label = NULL,value = input$From)
     
@@ -1070,15 +1095,35 @@ app_server <- function( input, output, session ) {
     updateDateInput(session,inputId = "ToCopy",label = NULL,value = input$To)
   })
   
+  
   output$perfLog <- DT::renderDataTable({
     perfLog <- data.frame(TimeTest = as.character(perf_log()$TimeTest),
                           MeanPerf = round(perf_log()$MeanPerf,2),
                           Quantil = round(perf_log()$Quantil,2))
     datatable(perfLog,class = 'cell-border stripe', rownames = FALSE, filter = 'top', options = list(
       pageLength = 10, autoWidth = TRUE))  
-    
   })
   
+  output$inputLog <- DT::renderDataTable({
+    
+    inputLog <- input_log()
+    
+    # dw <- inputLog %>% select(Folder)
+    
+    
+    # for (i in 1:nrow(inputLog)){
+    #  
+    #   inputLog[i,2] <- substr(inputLog[i,2],23,27)
+    # 
+    # }
+    
+    # inputLog <- data.frame(TimeTest = as.character(inputLog$TimeTest),
+    #                       Version = as.character(inputLog$Folder),
+    #                       MeanPerf = round(inputLog$MeanPerf,2),
+    #                       HighPerf = round(inputLog$HighPerf,2))
+    datatable(input_log(),class = 'cell-border stripe', rownames = FALSE, filter = 'top', options = list(
+      pageLength = 10, autoWidth = TRUE))  
+  })
   
   output$perfGraph <- renderPlotly({
     
@@ -1096,12 +1141,29 @@ app_server <- function( input, output, session ) {
     ) 
     fig <- fig %>% layout(title = list(text = "Open = MeanPerf - Close = Quantile", x = 0),
                           xaxis = list(rangeslider = list(visible = F))) 
-    fig
-    
-    
   }) 
   
-  
+  output$inputGraph <- renderPlotly({
+    
+    inputLog <- input_log()
+    # 
+    # inputLog$Folder <- as.integer(substr(inputLog[,2],3,5))
+    # 
+    # version <- unique(inputLog[,2])
+    # 
+    graph <- plot_ly(data = inputLog, x = inputLog[,3], y = inputLog[,4], color = inputLog[,2], alpha = 0.7,
+                     type = 'scatter',
+                     mode = "markers",
+                     text = paste0("Version: ",inputLog[,2], '$<br>Date: ',inputLog[,1]),
+                     marker = list(size = 50,
+                                   width = 2))
+    
+    graph <- graph %>% layout(title = 'Data Writer Performances',
+                              xaxis = list(title = 'MeanPerformance'),
+                              yaxis = list(title = 'HighPerformance'))
+    
+    
+  })
   
   #---------------END CODE------------------------------------------
   output$console <- renderPrint({
